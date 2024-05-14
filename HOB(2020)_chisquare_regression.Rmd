@@ -1,0 +1,238 @@
+---
+title: "Hands-on Biostatistics"
+author: "Discovering relationships"
+date: "18/7/2020"
+output:
+  pdf_document: default
+  word_document: default
+  html_document: default
+---
+
+## Install necessary packages
+
+```{r}
+#install.packages(readr, ggpubr)
+
+#To successfully install ggpubr you need to install Rtolls first from cran.
+#If you don't succeed no worries, 
+#this package is needed only for a graphical display in correlation. 
+```
+
+
+## Chi-square test for independence
+
+Hypothetical Example: Effectiveness of a Drug Treatment. 
+
+```{r}
+#read the data
+library(readr)
+treat.drug <- read_csv("C:/Users/user/Desktop/HOB(2020)/R/chi-square.csv", 
+    col_types = cols(id = col_number(), improvement = col_character(), 
+        treatment = col_character()))
+
+```
+
+- Organize the data in a crosstab
+
+```{r}
+#Create crosstab
+dt<- table(treat.drug$treatment, treat.drug$improvement)
+dt #print the crosstab
+
+```
+- From the crosstab we see that there are two categorical variables with two levels each. We have treatment, treated and not-treated, and improvement of health: improved and not-improved. We want to see if treatment is related to improvement of health.
+
+### Visualize the data
+
+```{r}
+# Plot the data
+
+barplot(dt,
+main = "Treatment effect",
+xlab = "Improvement", beside = TRUE,
+col = c("red","green")
+)
+legend("topright",
+c("Not-Treated","Treated"),
+fill = c("red","green")
+)
+```
+
+
+
+
+### Conduct the chi-square test for association/independence
+
+```{r}
+# Chi-sq test
+chisq <- chisq.test(dt, correct=FALSE)
+chisq
+```
+
+We have a chi-squared value of 5.55. Since we get a p-Value less than the significance level of 0.05, we can reject the null hypothesis and conclude that the two variables are in fact dependent. 
+
+
+
+### Check assumptions
+
+```{r}
+
+# Expected counts
+round(chisq$expected,2)
+
+```
+
+### Documentation
+
+A chi-square test for association was conducted between treatment and health improvement. All expected cell frequencies were greater than five. There was a statistically significant association between treatment and health improvement, ??2(1) = 5.56, p = 0.018.
+
+
+
+## Fisher's exact test
+
+The function fisher.test is used to perform Fisher's exact test when the sample size is small. We will run the Fisher's exact test in the same data as in chi-square to see if there is a  difference.
+
+```{r}
+fisher <- fisher.test(dt)
+fisher
+```
+
+From the output we see that the p-value is less than the significance level of 0.05, we can reject the null hypothesis. In our context, rejecting the null hypothesis for the Fisher's exact test of independence means that there is a significant relationship between the two categorical variables (treatment and improvement).  
+
+
+## Simple linear regression 
+
+
+Linear regression it is used when we want to predict the value of a dependent/outcome variable based on the value of another independent/predictor variable. In our example, we will use linear regression to understand whether height (in inches) can be predicted based on age.
+
+### Read the data
+```{r}
+
+library(readxl)
+ageandheight <- read_excel("ageandheight.xls", sheet = "Hoja2") #Upload the data
+
+print(ageandheight)
+
+```
+
+### Visualize the data
+
+## Boxplots to check for outliers
+```{r}
+
+par(mfrow=c(1, 2))  # divide graph area in 2 columns
+boxplot(ageandheight$age, main="Age", sub=paste("Outlier rows: ", boxplot.stats(ageandheight$age)$out))  # box plot for age
+boxplot(ageandheight$height, main="Height", sub=paste("Outlier rows: ", boxplot.stats(ageandheight$height)$out))  # box plot for 'height'
+
+```
+- There are no outliers in the data.
+
+
+
+### Scatterplot to see if there is a trend for linear relationship
+
+```{r}
+plot(ageandheight$height~ageandheight$age, xlab="Age", ylab="Height", pch = 16, col = "red")
+
+
+```
+
+
+
+### Perform linear regression
+```{r}
+lmHeight = lm(height~age, data = ageandheight) #Create the linear regression
+
+summary(lmHeight) #Review the results
+
+```
+
+- Interpretation of the coefficients
+
+
+### Documentation
+A linear regression established age could significantly predict height, F(1,10) =880, p < 0.0001 and age accounted for 98.8 % (R squre=0.988) of the explained variability in height. The regression equation was: predicted height = 64.92 + (0.635 * age). 
+
+Note:
+
+In the output, you can see the values of the intercept (alfa value) and the slope (beta value) for the age. If there is a child that is 20.5 months old, alfa is 64.92 and b is 0.635, the model predicts (on average) that its height in centimeters is around 64.92 + (0.635 * 20.5) = 77.93 cm.
+
+
+### Extract fitted/predicted values
+```{r}
+#Extract fitted values
+
+lmHeight$fitted.values
+plot(ageandheight$height~lmHeight$fitted.values, xlab="Predicted values", ylab="Observed values", pch = 16, col = "red")
+```
+
+
+### Model fit diagnostic
+```{r}
+plot(lmHeight$residuals, pch = 16, col = "red")
+qqnorm(lmHeight$residuals, pch = 16, col = "red")
+qqline(lmHeight$residuals, pch = 16, col = "red")
+```
+
+You don't see any clear patterns on your residuals, which is good!
+
+
+
+## Correlation
+
+
+The Pearson product-moment correlation coefficient (Pearson's correlation, for short) is used to measure the strength and direction of association between two continuous variables.
+
+In our example, we could use a Pearson's correlation to understand whether there is an association between age and height.
+
+
+### Test for normality
+
+```{r}
+
+shapiro.test(ageandheight$age)
+shapiro.test(ageandheight$height)
+```
+
+
+### COmpute the Pearson correlation coefficient 
+```{r}
+cor.test(ageandheight$age,ageandheight$height, method=c("pearson"))
+
+```
+
+### Visualize your results with 95% CI included
+```{r}
+library("ggpubr")
+ggscatter(ageandheight, x = "age", y = "height", 
+          add = "reg.line", conf.int = TRUE, 
+          cor.coef = TRUE, cor.method = "pearson",
+          xlab = "Age", ylab = "Height")
+```
+
+### Documentation
+
+There was a strong positive correlation between age and height, r = 0.99. An increase in age led to an increase in height, r(10) = 0.99, p < 0.0001.
+
+
+
+
+
+
+
+
+
+## References
+
+https://www.r-bloggers.com/chi-squared-test/
+
+https://cran.r-project.org/web/packages
+
+https://towardsdatascience.com/fishers-exact-test-in-r-independence-test-for-a-small-sample-56965db48e87
+
+https://www.datacamp.com/community/tutorials/linear-regression
+
+http://www.sthda.com/english/wiki/correlation-test-between-two-variables
+
+https://statistics.laerd.com/
+
